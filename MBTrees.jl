@@ -63,15 +63,14 @@ function populate!(t, b, T)
     end
 end
 
-function choose_body(t)
+function choose_body(t, x)
     if t.leaf
         return (t.b.i, t.b.j)
     else
-        x = rand(0:1e-10:t.sum)
         if x < t.cut
-            choose_body(t.l)
+            choose_body(t.l, x)
         else
-            choose_body(t.r)
+            choose_body(t.r, t.sum - x)
         end
     end
 end
@@ -80,7 +79,8 @@ function freeman_step!(bs, tree, N, T, maxitr)
     flip = false
     itr = 0
     while !flip
-        (i, j) = choose_body(tree)
+        x = rand(0:1e-10:tree.sum)
+        (i, j) = choose_body(tree, x)
 
         Ei = bs[i,j].E
         Ef = -Ei
