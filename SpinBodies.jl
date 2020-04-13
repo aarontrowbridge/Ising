@@ -57,7 +57,7 @@ function update_energies!(bs, qs, N)
     end
 end
 
-m(ΔE, T) = minimum((1, exp(-ΔE / T)))
+m(ΔE, T) = minimum([1, exp(-ΔE / T)])
 
 function metropolis_step!(bs, N, T, maxitr)
     flip = false
