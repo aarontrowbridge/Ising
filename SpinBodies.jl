@@ -51,14 +51,25 @@ end
 
 # function avg_energy(l)
 
-function update_adj_energies!(bs, i, j, N)
+function spin_lattice(N)
+    bs = Matrix{SpinBody}(undef, N, N)
+    for i = 1:N, j = 1:N
+        bs[i,j] = SpinBody(i, j, N)
+    end
+    init_energy!(bs)
+    bs
+end
+
+function update_adj_energies!(bs, i, j)
+    N = size(bs)[1]
     I = [mod(i, N) + 1, i,   mod(i-2, N) + 1, i]
     J = [j,   mod(i, N) + 1, j,   mod(j-2, N) + 1]
     qs = collect(zip(I, J))
-    update_energies!(bs, qs, N)
+    update_energies!(bs, qs)
 end
 
-function update_energies!(bs, qs, N)
+function update_energies!(bs, qs)
+    N = size(bs)[1]
     for (i, j) in qs
         sk = bs[i, j].s
         sr = bs[i, mod(j, N) + 1].s
@@ -71,33 +82,22 @@ end
 
 m(ΔE, T) = minimum([1, exp(-ΔE / T)])
 
-function metropolis_step!(bs, N, T, maxitr)
+function metropolis_step!(bs, T)
     flip = false
-    itr = 0
-    while !flip
-        i, j = rand(1:N), rand(1:N)
-
-        Ei = bs[i,j].E
-        Ef = -Ei
-        ΔE = Ef - Ei
-
-        α = m(ΔE, T)
-
-        u = rand()
-        if u < α
-            bs[i,j].s *= -1
-            bs[i,j].E = Ef
-            update_adj_energies!(bs, i, j, N)
-            flip = true
-        end
-
-        itr += 1
-        if itr > maxitr
-            println("Q")
-            println("max iterations reached!")
-            exit()
-        end
+    N = size(bs)[1]
+    i, j = rand(1:N), rand(1:N)
+    Ei = bs[i,j].E
+    Ef = -Ei
+    ΔE = Ef - Ei
+    α = m(ΔE, T)
+    u = rand()
+    if u < α
+        bs[i,j].s *= -1
+        bs[i,j].E = Ef
+        update_adj_energies!(bs, i, j)
+        flip = true
     end
+    (bs, flip)
 end
 
 

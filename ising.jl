@@ -2,37 +2,77 @@
 # script to run the metropolis algorithm for the 2d ising model
 #
 
+using Printf
+
 push!(LOAD_PATH, pwd())
 
 using SpinBodies, MBTrees
 
-function anim(bs)
+function anim(bs, step, flip)
     for b in bs
         x = b.i - N/2
         y = b.j - N/2
         r = 0.3
-        println("C $(b.s == 1 ? 0 : 1) 0 $(b.s == 1 ? 1 : 0)")
-        println("c3 $x $y 0 $r")
+        @printf "C %d 0 %d\n" (b.s == 1 ? 0 : 1) (b.s == 1 ? 1 : 0)
+        @printf "c3 %f %f 0 %f\n" x y r
     end
-    println("F")
+
+    @printf "C 1 1 1\n"
+    @printf "T -0.95 0.95\n"
+    @printf "step = %d\n" step
+    @printf "T -0.35 0.95\n"
+    @printf "flip = %d\n" flip
+    @printf "T 0.35 0.95\n"
+    @printf "f/s = %.4f\n" flip/step
+    @printf "F\n"
 end
 
-const N = 40
-const T = 2.0
+const N = 50
+const T = 0.5
 
-const steps = 1e8
+const steps = 1e5
 const maxitr = 1e6
+
+const type = :bi
+
+const freeman = true
 
 function main()
     bs = spin_lattice(N)
-    tree = build_tree(bs, T)
+
+    if freeman
+        tree = build_tree(bs, T, type)
+    end
+
+    flips = 0
+    itr = 0
 
     for step = 1:steps
+        if freeman
+            freeman_step!(bs, tree)
+            if tree.flip
+                itr = 0
+                flips += 1
+                tree.flip = false
+            end
+        else
+            (bs, flip) = metropolis_step!(bs, T)
+            if flip
+                itr = 0
+                flips += 1
+            end
+        end
 
-        freeman_step!(bs, tree, N, T, maxitr)
-        # metropolis_step!(bs, N, T, maxitr)
+        if step % 500 == 0
+            anim(bs, step, flips)
+        end
 
-        if step % 50 == 0 anim(bs) end
+        if itr > maxitr
+            println("Q")
+            println("reached max iterations")
+            exit()
+        end
+        itr += 1
     end
 
     println("Q")
