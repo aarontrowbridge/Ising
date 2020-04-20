@@ -17,6 +17,19 @@ mutable struct SpinBody
                                                  i, j, k(i, j, N))
 end
 
+mutable struct SpinLattice
+    bs::Matrix{SpinBody}
+    T::Float64
+    M::Float64
+    E::Float64
+    c::Float64
+
+    SpinLattice(N::Int64, T::Float64) = new(spin_lattice(N), T, 0, 0, 0)
+end
+# TO-DO: add methods for correlation function
+
+
+
 k(i, j, N) = (i - 1)*N + j
 
 function init_energy!(bs, N)
