@@ -13,8 +13,7 @@ mutable struct SpinBody
     j::Int64
     k::Int64
 
-    SpinBody(i::Int64, j::Int64, N::Int64) = new(rand([-1,1]), 0.0,
-                                                 i, j, k(i, j, N))
+    SpinBody(i::Int64, j::Int64, N::Int64) = new(rand([-1,1]), 0.0, i, j, k(i, j, N))
 end
 
 mutable struct SpinLattice
@@ -24,15 +23,22 @@ mutable struct SpinLattice
     E::Float64
     c::Float64
 
-    SpinLattice(N::Int64, T::Float64) = new(spin_lattice(N), T, 0, 0, 0)
+    function SpinLattice(N::Int64, T::Float64)
+        bs = Matrix{SpinBody}(undef, N, N)
+        for i = 1:N, j = 1:N
+            bs[i,j] = SpinBody(i, j, N)
+        end
+        init_energy!(bs, N)
+
+        new(bs, T, 0, 0, 0)
+    end
 end
 # TO-DO: add methods for correlation function
 
-
-
 k(i, j, N) = (i - 1)*N + j
 
-function init_energy!(bs, N)
+function init_energy!(bs::Matrix{SpinBody})
+    N = size(bs)[1]
     for i = 1:N, j = 1:N
         sk = bs[i, j].s
         sr = bs[i, mod(j, N) + 1].s
@@ -43,14 +49,7 @@ function init_energy!(bs, N)
     end
 end
 
-function spin_lattice(N)
-    bs = Matrix{SpinBody}(undef, N, N)
-    for i = 1:N, j = 1:N
-        bs[i,j] = SpinBody(i, j, N)
-    end
-    init_energy!(bs, N)
-    bs
-end
+# function avg_energy(l)
 
 function update_adj_energies!(bs, i, j, N)
     I = [mod(i, N) + 1, i,   mod(i-2, N) + 1, i]
@@ -80,22 +79,16 @@ function metropolis_step!(bs, N, T, maxitr)
 
         Ei = bs[i,j].E
         Ef = -Ei
+        ΔE = Ef - Ei
 
-        if Ef < Ei
+        α = m(ΔE, T)
+
+        u = rand()
+        if u < α
             bs[i,j].s *= -1
             bs[i,j].E = Ef
             update_adj_energies!(bs, i, j, N)
             flip = true
-        else
-            ΔE = Ef - Ei
-            α = m(ΔE, T)
-            u = rand()
-            if u < α
-                bs[i,j].s *= -1
-                bs[i,j].E = Ef
-                update_adj_energies!(bs, i, j, N)
-                flip = true
-            end
         end
 
         itr += 1
