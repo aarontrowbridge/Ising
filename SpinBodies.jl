@@ -13,13 +13,31 @@ mutable struct SpinBody
     j::Int64
     k::Int64
 
-    SpinBody(i::Int64, j::Int64, N::Int64) = new(rand([-1,1]), 0.0,
-                                                 i, j, k(i, j, N))
+    SpinBody(i::Int64, j::Int64, N::Int64) = new(rand([-1,1]), 0.0, i, j, k(i, j, N))
 end
+
+mutable struct SpinLattice
+    bs::Matrix{SpinBody}
+    T::Float64
+    M::Float64
+    E::Float64
+    c::Float64
+
+    function SpinLattice(N::Int64, T::Float64)
+        bs = Matrix{SpinBody}(undef, N, N)
+        for i = 1:N, j = 1:N
+            bs[i,j] = SpinBody(i, j, N)
+        end
+        init_energy!(bs, N)
+
+        new(bs, T, 0, 0, 0)
+    end
+end
+# TO-DO: add methods for correlation function
 
 k(i, j, N) = (i - 1)*N + j
 
-function init_energy!(bs)
+function init_energy!(bs::Matrix{SpinBody})
     N = size(bs)[1]
     for i = 1:N, j = 1:N
         sk = bs[i, j].s
@@ -30,6 +48,8 @@ function init_energy!(bs)
         bs[i,j].E = -sk * (sr + su + sl + sd)
     end
 end
+
+# function avg_energy(l)
 
 function spin_lattice(N)
     bs = Matrix{SpinBody}(undef, N, N)
