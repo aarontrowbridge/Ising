@@ -8,8 +8,8 @@ push!(LOAD_PATH, pwd())
 
 using SpinBodies, MBTrees
 
-function anim(bs, step, flip)
-    for b in bs
+function anim(l, steps, flips)
+    for b in l.bs
         x = b.i - N/2
         y = b.j - N/2
         r = 0.3
@@ -19,60 +19,44 @@ function anim(bs, step, flip)
 
     @printf "C 1 1 1\n"
     @printf "T -0.95 0.95\n"
-    @printf "step = %d\n" step
+    @printf "steps = %d\n" steps
     @printf "T -0.35 0.95\n"
-    @printf "flip = %d\n" flip
-    @printf "T 0.35 0.95\n"
-    @printf "f/s = %.4f\n" flip/step
+    @printf "flips = %d\n" l.flips
+    @printf "T 0.25 0.95\n"
+    @printf "steps/flip = %.4f\n" frameskip/maximum([1, l.flips - flips])
     @printf "F\n"
 end
 
-const N = 50
-const T = 0.5
-
-const steps = 1e5
+const steps = 1e6
 const maxitr = 1e6
 
-const type = :bi
+const frameskip = 500
 
 const freeman = true
+const type = :tri
+
+const N = 30
+const T = 0.5
 
 function main()
-    bs = spin_lattice(N)
+    lattice = SpinLattice(N, T)
 
     if freeman
-        tree = build_tree(bs, T, type)
+        tree = build_tree(lattice, type)
     end
 
     flips = 0
-    itr = 0
-
     for step = 1:steps
         if freeman
-            freeman_step!(bs, tree)
-            if tree.flip
-                itr = 0
-                flips += 1
-                tree.flip = false
-            end
+            freeman_step!(lattice, tree)
         else
-            (bs, flip) = metropolis_step!(bs, T)
-            if flip
-                itr = 0
-                flips += 1
-            end
+            metropolis_step!(lattice)
         end
 
-        if step % 500 == 0
-            anim(bs, step, flips)
+        if step % frameskip == 0
+            anim(lattice, step, flips)
+            flips = lattice.flips
         end
-
-        if itr > maxitr
-            println("Q")
-            println("reached max iterations")
-            exit()
-        end
-        itr += 1
     end
 
     println("Q")
