@@ -31,17 +31,13 @@ mutable struct SpinLattice
 
     function SpinLattice(N::Int64, T::Float64)
         bs = Matrix{SpinBody}(undef, N, N)
-
         for i = 1:N, j = 1:N
             bs[i,j] = SpinBody(i, j, N)
         end
-
         init_energy!(bs, N)
-
         M = avg_magnetization(bs)
         E = avg_energy(bs)
         c = specific_heat(bs, T)
-
         new(N, bs, T, M, E, c, 0)
     end
 end
@@ -74,10 +70,11 @@ function init_energy!(bs::Matrix{SpinBody}, N::Int64)
 end
 
 function update_energies!(l::SpinLattice, i::Int64, j::Int64)
-    N = l.N
+    l.bs[i,j].s *= -1
     l.bs[i,j].E *= -1
-    I = [mod(i, N) + 1, i,   mod(i-2, N) + 1, i]
-    J = [j,   mod(i, N) + 1, j,   mod(j-2, N) + 1]
+    N = l.N
+    I = [mod(i, N) + 1, i, mod(i-2, N) + 1, i]
+    J = [j, mod(i, N) + 1, j, mod(j-2, N) + 1]
     qs = collect(zip(I, J))
     update_energies!(l, qs)
 end
@@ -102,12 +99,11 @@ function metropolis_step!(l::SpinLattice)
     Ei = l.bs[i,j].E
     Ef = -Ei
     ΔE = Ef - Ei
-    α = m(ΔE, l.T)
+    p = m(ΔE, l.T)
     u = rand()
-    if u < α
-        l.bs[i,j].s *= -1
-        update_energies!(l, i, j)
+    if u < p
         l.flips += 1
+        update_energies!(l, i, j)
     end
 end
 

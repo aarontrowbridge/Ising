@@ -8,7 +8,7 @@ push!(LOAD_PATH, pwd())
 
 using SpinBodies, MBTrees
 
-function anim(l, step)
+function anim(l, steps, flips)
     for b in l.bs
         x = b.i - N/2
         y = b.j - N/2
@@ -19,19 +19,21 @@ function anim(l, step)
 
     @printf "C 1 1 1\n"
     @printf "T -0.95 0.95\n"
-    @printf "step = %d\n" step
+    @printf "steps = %d\n" steps
     @printf "T -0.35 0.95\n"
-    @printf "flip = %d\n" l.flips
-    @printf "T 0.35 0.95\n"
-    @printf "f/s = %.4f\n" l.flips/step
+    @printf "flips = %d\n" l.flips
+    @printf "T 0.25 0.95\n"
+    @printf "steps/flip = %.4f\n" frameskip/maximum([1, l.flips - flips])
     @printf "F\n"
 end
 
 const steps = 1e6
 const maxitr = 1e6
 
+const frameskip = 500
+
 const freeman = true
-const type = :bi
+const type = :tri
 
 const N = 30
 const T = 0.5
@@ -43,6 +45,7 @@ function main()
         tree = build_tree(lattice, type)
     end
 
+    flips = 0
     for step = 1:steps
         if freeman
             freeman_step!(lattice, tree)
@@ -50,8 +53,9 @@ function main()
             metropolis_step!(lattice)
         end
 
-        if step % 500 == 0
-            anim(lattice, step)
+        if step % frameskip == 0
+            anim(lattice, step, flips)
+            flips = lattice.flips
         end
     end
 
