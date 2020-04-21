@@ -161,22 +161,16 @@ k(i, j, N) = (i - 1)*N + j
 
 function tree_flip!(t::MBTree, l::SpinLattice, i::Int64, j::Int64)
     N = l.N
-    I = [mod(i, N) + 1, i,             mod(i-2, N) + 1, i]
-    J = [j,             mod(i, N) + 1, j,               mod(j-2, N) + 1]
+    I = [mod(i, N) + 1, i, mod(i-2, N) + 1, i]
+    J = [j, mod(i, N) + 1, j, mod(j-2, N) + 1]
     qs = collect(zip(I, J))
-
     Ei_s = [l.bs[n,m].E for (n, m) in [(i,j);qs]]
-
     l.bs[i,j].s *= -1
     l.bs[i,j].E *= -1
-
     update_energies!(l, qs)
-
     Ef_s = [l.bs[n,m].E for (n, m) in [(i,j);qs]]
-
     ks = [k(n, m, N) for (n, m) in [(i,j);qs]]
     Δp_s = [m(-2*Ef, l.T) - m(-2*Ei, l.T) for (Ei, Ef) in zip(Ei_s, Ef_s)]
-
     for (k, Δp) in zip(ks, Δp_s)
         update_ps!(t, k, Δp)
     end
