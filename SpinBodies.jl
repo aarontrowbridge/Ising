@@ -6,7 +6,7 @@ module SpinBodies
 
 using Statistics
 
-export SpinBody, SpinLattice, update_lattice!, update_energies!, metropolis_step!
+export SpinBody, SpinLattice, visualize, update_lattice!, update_energies!, metropolis_step!
 
 mutable struct SpinBody
     s::Int64
@@ -51,6 +51,14 @@ avg_energy(bs::Matrix{SpinBody}) =
 
 specific_heat(bs::Matrix{SpinBody}, T::Float64) =
     (mean([b.E^2 for b in bs]) - mean([b.E for b in bs])^2) / T^2
+
+function visualize(l::SpinLattice)
+    vis = Matrix{Int64}(undef, l.N, l.N)
+    for i = 1:N, j = 1:N
+        vis[i,j] = l.bs[i,j].s
+    end
+    vis
+end
 
 function update_lattice!(l::SpinLattice)
     l.E = avg_energy(l.bs)
