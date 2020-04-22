@@ -12,7 +12,7 @@ function anim(bs, step, flip)
     for b in bs
         x = b.i - N/2
         y = b.j - N/2
-        r = 0.3
+        r = 0.4
         @printf "C %d 0 %d\n" (b.s == 1 ? 0 : 1) (b.s == 1 ? 1 : 0)
         @printf "c3 %f %f 0 %f\n" x y r
     end
@@ -30,10 +30,10 @@ end
 const N = 50
 const T = 0.5
 
-const steps = 1e5
+const steps = 1e7
 const maxitr = 1e6
 
-const type = :bi
+const type = :tri
 
 const freeman = true
 
