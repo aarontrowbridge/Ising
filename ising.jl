@@ -32,11 +32,11 @@ const steps = 1e6
 const maxitr = 1e6
 
 const frameskip = 500
-h
-const freeman = true
-const type = :tri
 
-const N = 30
+const freeman = false
+const type = :bi
+
+const N = 50
 const T = 0.5
 
 function main()

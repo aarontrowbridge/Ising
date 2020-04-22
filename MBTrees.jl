@@ -103,19 +103,19 @@ end
 
 function choose_body_trinary(t::MBTree, x::Float64)
     if t.leaf
-        return t.q, t.p
+        return t.q
     else
         if t.r == nothing
             if x < t.l.sum
                 choose_body_trinary(t.l, x)
             else
-                return t.q, t.p
+                return t.q
             end
         elseif t.l == nothing
             if x > t.p
                 choose_body_trinary(t.r, x - t.p)
             else
-                return t.q, t.p
+                return t.q
             end
         else
             cut1 = t.l.sum
@@ -125,7 +125,7 @@ function choose_body_trinary(t::MBTree, x::Float64)
             elseif x > cut2
                 choose_body_trinary(t.r, x - cut2)
             else
-                return t.q, t.p
+                return t.q
             end
         end
     end
@@ -133,7 +133,7 @@ end
 
 function choose_body_binary(t::MBTree, x::Float64)
     if t.leaf
-        return t.q, t.p
+        return t.q
     else
         if x < t.l.sum
             choose_body_binary(t.l, x)
@@ -146,15 +146,11 @@ end
 function freeman_step!(l::SpinLattice, t::MBTree)
     x = rand() * t.sum
     if t.type == :tri
-        q, p = choose_body_trinary(t, x)
+        q = choose_body_trinary(t, x)
     else
-        q, p = choose_body_binary(t, x)
+        q = choose_body_binary(t, x)
     end
-    u = rand()
-    if u < p
-        l.flips += 1
-        tree_flip!(t, l, q.i, q.j)
-    end
+    tree_flip!(t, l, q.i, q.j)
 end
 
 k(i, j, N) = (i - 1)*N + j
