@@ -34,7 +34,7 @@ const maxitr = 1e6
 const frameskip = 500
 
 const freeman = false
-const type = :bi
+const type = :tri
 
 const N = 50
 const T = 0.5
