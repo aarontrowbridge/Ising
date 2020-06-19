@@ -98,12 +98,12 @@ function update_energies!(L::SpinLattice, i::Int, j::Int)
     L.bs[i,j].E *= -1
     N = L.N
     I = [mod(i, N) + 1, i, mod(i-2, N) + 1, i]
-    J = [j, mod(i, N) + 1, j, mod(j-2, N) + 1]
+    J = [j, mod(j, N) + 1, j, mod(j-2, N) + 1]
     qs = collect(zip(I, J))
     update_energies!(L, qs)
 end
 
-function update_energies!(L::SpinLattice, qs::Vector{Tuple{Int, Int}})
+function update_energies!(L::SpinLattice, qs::Vector{Tuple{Int,Int}})
     N = L.N
     for (i, j) in qs
         sk = L.bs[i, j].s
