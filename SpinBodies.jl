@@ -6,17 +6,17 @@ module SpinBodies
 
 using Statistics
 
-export SpinBody, SpinLattice, visualize, update_lattice!, update_energies!, metropolis_step!
+export SpinBody, SpinLattice, visualize, update_lattice!, metropolis_step!
 
 mutable struct SpinBody
     s::Int
-    E::Float64
+    E::Int
     i::Int
     j::Int
     k::Int
 
-    SpinBody(i::Int, j::Int, N::Int) = new(rand([-1,1]), 0., i, j, k(i, j, N))
-    SpinBody(s::Int, i::Int, j::Int, N::Int) = new(s, 0., i, j, k(i, j, N))
+    SpinBody(i::Int, j::Int, N::Int) = new(rand([-1,1]), 0, i, j, k(i, j, N))
+    SpinBody(s::Int, i::Int, j::Int, N::Int) = new(s, 0, i, j, k(i, j, N))
 end
 
 k(i, j, N) = (i - 1)*N + j
