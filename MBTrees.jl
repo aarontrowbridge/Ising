@@ -6,28 +6,27 @@ module MBTrees
 
 using SpinBodies
 
-export MBTree, build_tree, freeman_step!, freeman_step_fast!
+export MBTree
+export build_tree, freeman_step!, freeman_step_fast!
 
 mutable struct MBTree
-    q::NamedTuple{(:i, :j, :k),Tuple{Int64, Int64, Int64}}
-    p::Float64
+    q::NamedTuple{(:i,:j,:k),Tuple{Int,Int,Int}}
+    p::Union{Float64,Nothing}
     sum::Float64
-    left_ks::Vector{Int64}
-    right_ks::Vector{Int64}
-    left::Union{MBTree, Nothing}
-    right::Union{MBTree, Nothing}
+    left_ks::Vector{Int}
+    right_ks::Vector{Int}
+    left::Union{MBTree,Nothing}
+    right::Union{MBTree,Nothing}
     leaf::Bool
-    N::Int64
 
-    MBTree(N::Int64) = new((i=0, j=0, k=0), 0., 0.,
-                           Vector{Int64}(undef, 0),
-                           Vector{Int64}(undef, 0),
-                           nothing, nothing, true, N)
+    MBTree() = new((i=0, j=0, k=0), nothing, 0.,
+                   Vector{Int}(undef, 0),
+                   Vector{Int}(undef, 0),
+                   nothing, nothing, true)
 end
 
 function build_tree(L::SpinLattice)
-    N = L.N
-    tree = MBTree(L.N)
+    tree = MBTree()
     for b in L.bs
         p = m(-2*b.E, L.T)
         populate!(tree, b, p)
@@ -39,7 +38,7 @@ m(ΔE, T) = minimum([1, exp(-ΔE / T)])
 
 function populate!(T::MBTree, b::SpinBody, p::Float64)
     T.sum += p
-    if T.p == 0.
+    if T.p == nothing
         T.p = p
         T.q = (i=b.i, j=b.j, k=b.k)
     else
@@ -47,13 +46,13 @@ function populate!(T::MBTree, b::SpinBody, p::Float64)
         if rand(Bool)
             push!(T.left_ks, b.k)
             if T.left == nothing
-                T.left = MBTree(T.N)
+                T.left = MBTree()
             end
             populate!(T.left, b, p)
         else
             push!(T.right_ks, b.k)
             if T.right == nothing
-                T.right = MBTree(T.N)
+                T.right = MBTree()
             end
             populate!(T.right, b, p)
         end
@@ -90,21 +89,15 @@ function choose_body(T::MBTree, x::Float64)
     end
 end
 
-function freeman_step!(L::SpinLattice, T::MBTree)
-    x = rand() * T.sum
-    b = choose_body(T, x)
-    tree_flip!(L, T, b.i, b.j)
-end
-
-function freeman_step_fast!(L::SpinLattice, T::MBTree)
-    x = rand() * T.sum
-    b = choose_body(T, x)
-    tree_flip_fast!(L, T, b.i, b.j)
+function freeman_step!(L::SpinLattice, T::MBTree; fast=false)
+    r = rand()
+    b = choose_body(T, r * T.sum)
+    tree_flip!(L, T, b.i, b.j, r, fast=fast)
 end
 
 k(i, j, N) = (i - 1)*N + j
 
-function tree_flip!(L::SpinLattice, T::MBTree, i::Int64, j::Int64)
+function tree_flip!(L::SpinLattice, T::MBTree, i::Int, j::Int, r::Float64; fast=false)
     N = L.N
     I = [mod(i, N) + 1, i, mod(i-2, N) + 1, i]
     J = [j, mod(j, N) + 1, j, mod(j-2, N) + 1]
@@ -112,7 +105,11 @@ function tree_flip!(L::SpinLattice, T::MBTree, i::Int64, j::Int64)
     Ei_s = [L.bs[n,m].E for (n, m) in [(i,j);qs]]
     L.bs[i,j].s *= -1
     L.bs[i,j].E *= -1
-    update_energies!(L, qs)
+    if fast
+        update_energies_fast!(L, qs, L.bs[i,j].s)
+    else
+        update_energies!(L, qs)
+    end
     Ef_s = [L.bs[n,m].E for (n, m) in [(i,j);qs]]
     ks = [k(n, m, N) for (n, m) in [(i,j);qs]]
     Δp_s = [m(-2 * Ef, L.T) - m(-2 * Ei, L.T) for (Ei, Ef) in zip(Ei_s, Ef_s)]
@@ -120,46 +117,8 @@ function tree_flip!(L::SpinLattice, T::MBTree, i::Int64, j::Int64)
         update_ps!(T, k, Δp)
     end
     L.flips += 1
-end
-
-function update_energies!(L::SpinLattice, qs::Vector{Tuple{Int,Int}})
-    N = L.N
-    for (i, j) in qs
-        sk = L.bs[i, j].s
-        sr = L.bs[i, mod(j, N) + 1].s
-        sl = L.bs[i, mod(j-2, N) + 1].s
-        su = L.bs[mod(i, N) + 1, j].s
-        sd = L.bs[mod(i-2, N) + 1, j].s
-        L.bs[i,j].E = -sk * (sr + sl + su + sd)
-    end
-end
-
-function tree_flip_fast!(L::SpinLattice, T::MBTree, i::Int64, j::Int64)
-    N = L.N
-    I = [mod(i, N) + 1, i, mod(i-2, N) + 1, i]
-    J = [j, mod(j, N) + 1, j, mod(j-2, N) + 1]
-    qs = collect(zip(I, J))
-    Ei_s = [L.bs[n,m].E for (n, m) in [(i,j);qs]]
-    L.bs[i,j].s *= -1
-    L.bs[i,j].E *= -1
-    update_energies_fast!(L, qs, L.bs[i,j].s)
-    Ef_s = [L.bs[n,m].E for (n, m) in [(i,j);qs]]
-    ks = [k(n, m, N) for (n, m) in [(i,j);qs]]
-    Δp_s = [m(-2 * Ef, L.T) - m(-2 * Ei, L.T) for (Ei, Ef) in zip(Ei_s, Ef_s)]
-    for (k, Δp) in zip(ks, Δp_s)
-        update_ps!(T, k, Δp)
-    end
-    L.flips += 1
-end
-
-function update_energies_fast!(L::SpinLattice, qs::Vector{Tuple{Int,Int}}, s::Int)
-    for (i, j) in qs
-        if L.bs[i,j].s == s
-            L.bs[i,j].E -= 2
-        else
-            L.bs[i,j].E += 2
-        end
-    end
+    Pₐ = T.sum / N^2
+    L.steps += Int(maximum([0, floor(log(1 - Pₐ, r))])) + 1
 end
 
 function update_ps!(T::MBTree, k::Int64, Δp::Float64)
