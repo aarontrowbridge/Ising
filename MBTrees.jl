@@ -104,11 +104,11 @@ function tree_flip!(L::SpinLattice, T::MBTree, i::Int, j::Int, r::Float64; fast=
     qs = collect(zip(I, J))
     Ei_s = [L.bs[n,m].E for (n, m) in [(i,j);qs]]
     L.bs[i,j].s *= -1
-    L.bs[i,j].E *= -1
     if fast
+        L.bs[i,j].E *= -1
         update_energies_fast!(L, qs, L.bs[i,j].s)
     else
-        update_energies!(L, qs)
+        update_energies!(L, [(i,j);qs])
     end
     Ef_s = [L.bs[n,m].E for (n, m) in [(i,j);qs]]
     ks = [k(n, m, N) for (n, m) in [(i,j);qs]]
