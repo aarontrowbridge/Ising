@@ -7,14 +7,17 @@ module MBTrees
 using SpinBodies
 
 export MBTree
-export build_tree, freeman_step!, freeman_step_fast!
+export build_tree, freeman_step!
+
+const Flt = Float64
 
 mutable struct MBTree
     q::NamedTuple{(:i,:j,:k),Tuple{Int,Int,Int}}
-    p::Union{Float64,Nothing}
-    sum::Float64
+    p::Union{Flt,Nothing}
+    sum::Flt
     left_ks::Vector{Int}
     right_ks::Vector{Int}
+    up::Union{MBTree, Nothing}
     left::Union{MBTree,Nothing}
     right::Union{MBTree,Nothing}
     leaf::Bool
@@ -22,21 +25,25 @@ mutable struct MBTree
     MBTree() = new((i=0, j=0, k=0), nothing, 0.,
                    Vector{Int}(undef, 0),
                    Vector{Int}(undef, 0),
-                   nothing, nothing, true)
+                   nothing, nothing, nothing, true)
+
+    MBTree(tree::MBTree) = new((i=0, j=0, k=0), nothing, 0.,
+                               Vector{Int}(undef, 0),
+                               Vector{Int}(undef, 0),
+                               tree, nothing, nothing, true)
+
 end
 
 function build_tree(L::SpinLattice)
     tree = MBTree()
     for b in L.bs
-        p = m(-2*b.E, L.T)
-        populate!(tree, b, p)
+        p = L.f(-2*b.E, L.T)
+        populate!(tree, b, Flt(p))
     end
     tree
 end
 
-m(ΔE, T) = minimum([1, exp(-ΔE / T)])
-
-function populate!(T::MBTree, b::SpinBody, p::Float64)
+function populate!(T::MBTree, b::SpinBody, p::Flt)
     T.sum += p
     if T.p == nothing
         T.p = p
@@ -46,20 +53,20 @@ function populate!(T::MBTree, b::SpinBody, p::Float64)
         if rand(Bool)
             push!(T.left_ks, b.k)
             if T.left == nothing
-                T.left = MBTree()
+                T.left = MBTree(T)
             end
             populate!(T.left, b, p)
         else
             push!(T.right_ks, b.k)
             if T.right == nothing
-                T.right = MBTree()
+                T.right = MBTree(T)
             end
             populate!(T.right, b, p)
         end
     end
 end
 
-function choose_body(T::MBTree, x::Float64)
+function choose_body(T::MBTree, x)
     if T.leaf
         return T.q
     else
@@ -90,14 +97,14 @@ function choose_body(T::MBTree, x::Float64)
 end
 
 function freeman_step!(L::SpinLattice, T::MBTree; fast=false)
-    r = rand()
+    r = rand(Flt)
     b = choose_body(T, r * T.sum)
     tree_flip!(L, T, b.i, b.j, r, fast=fast)
 end
 
 k(i, j, N) = (i - 1)*N + j
 
-function tree_flip!(L::SpinLattice, T::MBTree, i::Int, j::Int, r::Float64; fast=false)
+function tree_flip!(L::SpinLattice, T::MBTree, i::Int, j::Int, r::Flt; fast=false)
     N = L.N
     I = [mod(i, N) + 1, i, mod(i-2, N) + 1, i]
     J = [j, mod(j, N) + 1, j, mod(j-2, N) + 1]
@@ -112,26 +119,33 @@ function tree_flip!(L::SpinLattice, T::MBTree, i::Int, j::Int, r::Float64; fast=
     end
     Ef_s = [L.bs[n,m].E for (n, m) in [(i,j);qs]]
     ks = [k(n, m, N) for (n, m) in [(i,j);qs]]
-    Δp_s = [m(-2 * Ef, L.T) - m(-2 * Ei, L.T) for (Ei, Ef) in zip(Ei_s, Ef_s)]
+    Δp_s = [L.f(-2 * Ef, L.T) - L.f(-2 * Ei, L.T) for (Ei, Ef) in zip(Ei_s, Ef_s)]
     for (k, Δp) in zip(ks, Δp_s)
-        update_ps!(T, k, Δp)
+        update_tree!(T, k, Flt(Δp))
     end
     L.flips += 1
-    Pₐ = T.sum / N^2
-    L.steps += Int(maximum([0, floor(log(1 - Pₐ, r))])) + 1
+    if L.f == prb
+        Pₐ = T.sum / N^2
+        L.steps += Int(maximum([0, floor(log(1 - Pₐ, r))])) + 1
+    else
+        L.steps += 1
+    end
 end
 
-function update_ps!(T::MBTree, k::Int64, Δp::Float64)
+function update_tree!(T::MBTree, k::Int, Δp::Flt)
     T.sum += Δp
     if T.q.k == k
         T.p += Δp
     else
         if k in T.left_ks
-            update_ps!(T.left, k, Δp)
+            update_tree!(T.left, k, Δp)
         else
-            update_ps!(T.right, k, Δp)
+            update_tree!(T.right, k, Δp)
         end
     end
 end
+
+
+
 
 end

@@ -8,6 +8,7 @@ using Statistics
 
 export SpinBody, SpinLattice
 export visualize, update_energies!, update_energies_fast!, update_lattice!, metropolis_step!
+export prb, amp
 
 mutable struct SpinBody
     s::Int
@@ -31,8 +32,9 @@ mutable struct SpinLattice
     c::Float64
     steps::Int
     flips::Int
+    f::Function
 
-    function SpinLattice(N::Int, T::Float64)
+    function SpinLattice(N::Int, T::Float64, f::Function)
         bs = Matrix{SpinBody}(undef, N, N)
         for i = 1:N, j = 1:N
             bs[i,j] = SpinBody(i, j, N)
@@ -41,11 +43,16 @@ mutable struct SpinLattice
         M = avg_magnetization(bs)
         E = avg_energy(bs)
         c = specific_heat(bs, T)
-        new(N, bs, T, M, E, c, 0, 0)
+        new(N, bs, T, M, E, c, 0, 0, f)
     end
 
-    SpinLattice(N::Int, bs::Matrix{SpinBody}, T::Float64, M::Float64, E::Float64, c::Float64) =
-        new(N, bs, T, M, E, c, 0, 0)
+    SpinLattice(N::Int,
+                bs::Matrix{SpinBody},
+                T::Float64,
+                M::Float64,
+                E::Float64,
+                c::Float64,
+                f::Function) = new(N, bs, T, M, E, c, 0, 0, f)
 end
 
 # TO-DO: add methods for correlation function
@@ -58,7 +65,7 @@ Base.copy(bs::Matrix{SpinBody}, N::Int) = begin
     return bs_copy
 end
 
-Base.copy(L::SpinLattice) = SpinLattice(L.N, copy(L.bs, L.N), L.T, L.M, L.E, L.c)
+Base.copy(L::SpinLattice) = SpinLattice(L.N, copy(L.bs, L.N), L.T, L.M, L.E, L.c, L.f)
 
 avg_magnetization(bs::Matrix{SpinBody}) =
     mean([b.s for b in bs])
@@ -97,15 +104,15 @@ end
 
 function flip!(L::SpinLattice, i::Int, j::Int; fast=false)
     L.bs[i,j].s *= -1
-    L.bs[i,j].E *= -1
     N = L.N
     I = [mod(i, N) + 1, i, mod(i-2, N) + 1, i]
     J = [j, mod(j, N) + 1, j, mod(j-2, N) + 1]
     qs = collect(zip(I, J))
     if fast
+        L.bs[i,j].E *= -1
         update_energies_fast!(L, qs, L.bs[i,j].s)
     else
-        update_energies!(L, qs)
+        update_energies!(L, [(i, j); qs])
     end
 end
 
@@ -127,14 +134,15 @@ function update_energies_fast!(L::SpinLattice, qs::Vector{Tuple{Int,Int}}, s::In
     end
 end
 
-m(ΔE, T) = minimum([1, exp(-ΔE / T)])
+prb(ΔE, T) = minimum([1, exp(-ΔE / T)])
+amp(ΔE, T) = exp(-0.5 * ΔE / T)
 
 function metropolis_step!(L::SpinLattice; fast=false)
     i, j = rand(1:L.N), rand(1:L.N)
     Ei = L.bs[i,j].E
     Ef = -Ei
     ΔE = Ef - Ei
-    p = m(ΔE, L.T)
+    p = L.f(ΔE, L.T)
     u = rand()
     if u < p
         flip!(L, i, j, fast=fast)
