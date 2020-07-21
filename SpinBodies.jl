@@ -34,7 +34,7 @@ mutable struct SpinLattice
     flips::Int
     f::Function
 
-    function SpinLattice(N::Int, T::Float64, f::Function)
+    function SpinLattice(N::Int, T::Float64; f::Function=amp)
         bs = Matrix{SpinBody}(undef, N, N)
         for i = 1:N, j = 1:N
             bs[i,j] = SpinBody(i, j, N)
@@ -102,7 +102,7 @@ function init_energy!(bs::Matrix{SpinBody}, N::Int)
     end
 end
 
-function flip!(L::SpinLattice, i::Int, j::Int; fast=false)
+function flip!(L::SpinLattice, i::Int, j::Int; fast=true)
     L.bs[i,j].s *= -1
     N = L.N
     I = [mod(i, N) + 1, i, mod(i-2, N) + 1, i]

@@ -6,10 +6,61 @@ module MBTrees
 
 using SpinBodies
 
-export MBTree
-export build_tree, freeman_step!
+export MBTree, TreeVec
+export build_tree, freeman_step!, treevecstep!
 
 const Flt = Float64
+
+mutable struct TreeVec
+    cps::Vector{Flt}
+    sum::Flt
+
+    function TreeVec(L::SpinLattice)
+        ps = [L.f(-2 * b.E, L.T) for b in L.bs]
+        cps = [sum(ps[1:k]) for k = 1:(L.N^2 - 1)]
+        sm = sum(ps)
+        new(cps, sm)
+    end
+end
+
+function treevecstep!(L::SpinLattice, treevec::TreeVec)
+    r = treevec.sum * rand()
+    k = searchsorted(treevec.cps, r).start
+    i, j = ij(k, L.N)
+    updates = treevecflip!(L, i, j)
+    update!(treevec, updates, L.N)
+    if L.f == prb
+        Pₐ = treevec.sum / L.N^2
+        L.steps += Int(maximum([0, floor(log(1 - Pₐ, r))])) + 1
+    else
+        L.steps += 1
+    end
+    L.flips += 1
+end
+
+ij(k, N) = (div(k - 1, N) + 1, mod(k - 1, N) + 1)
+
+function update!(treevec::TreeVec, updates::Vector, N::Int)
+    for (k, Δp) in updates
+        if k < N^2 treevec.cps[k:end] .+= Δp end
+        treevec.sum += Δp
+    end
+end
+
+function treevecflip!(L::SpinLattice, i::Int, j::Int)
+    N = L.N
+    I = [mod(i, N) + 1, i, mod(i-2, N) + 1, i]
+    J = [j, mod(j, N) + 1, j, mod(j-2, N) + 1]
+    qs = collect(zip(I, J))
+    Ei_s = [L.bs[n,m].E for (n, m) in [(i,j);qs]]
+    L.bs[i,j].s *= -1
+    L.bs[i,j].E *= -1
+    update_energies_fast!(L, qs, L.bs[i,j].s)
+    Ef_s = [L.bs[n,m].E for (n, m) in [(i,j);qs]]
+    ks = [k(n, m, N) for (n, m) in [(i,j);qs]]
+    Δp_s = [L.f(-2 * Ef, L.T) - L.f(-2 * Ei, L.T) for (Ei, Ef) in zip(Ei_s, Ef_s)]
+    return collect(zip(ks, Δp_s))
+end
 
 mutable struct MBTree
     q::NamedTuple{(:i,:j,:k),Tuple{Int,Int,Int}}
