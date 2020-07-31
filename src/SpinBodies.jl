@@ -69,7 +69,8 @@ Base.copy(bs::Matrix{SpinBody}, n::Int) = begin
     return bs_copy
 end
 
-Base.copy(L::SpinLattice) = SpinLattice(L.n, L.N, copy(L.bs, L.n), L.T, L.M, L.E, L.c, L.f)
+Base.copy(L::SpinLattice) = SpinLattice(
+    L.n, L.N, copy(L.bs, L.n), L.T, L.M, L.E, L.c, L.f)
 
 avg_magnetization(bs::Matrix{SpinBody}) =
     mean([b.s for b in bs])
@@ -141,7 +142,7 @@ prb(ΔE, T) = minimum([1, exp(-ΔE / T)])
 amp(ΔE, T) = exp(-0.5 * ΔE / T)
 
 function metropolis_step!(L::SpinLattice; fast=false)
-    i, j = rand(1:L.N), rand(1:L.N)
+    i, j = rand(1:L.n), rand(1:L.n)
     Ei = L.bs[i,j].E
     Ef = -Ei
     ΔE = Ef - Ei

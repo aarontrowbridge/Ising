@@ -12,18 +12,19 @@ export build_tree, freeman_step!, treevecstep!
 const Flt = Float64
 
 mutable struct TreeVec
+    ps::Vector{Flt}
     cps::Vector{Flt}
     sum::Flt
 
     function TreeVec(L::SpinLattice)
-        ps = [L.f(-2 * b.E, L.T) for b in L.bs]
+        ps = [L.f(-2 * b.E, L.T) for b in L.bs][:]
         cps = Vector{Flt}(undef, L.N - 1)
         cps[1] = ps[1]
         for k = 2:L.N-1
             cps[k] = cps[k - 1] + ps[k]
         end
         psum = sum(ps)
-        new(cps, psum)
+        new(ps, cps, psum)
     end
 end
 
@@ -59,9 +60,11 @@ function treevecflip!(L::SpinLattice, treevec::TreeVec, i::Int, j::Int)
 
     for (k, Δp) in zip(ks, Δp_s)
         treevec.sum += Δp
-        if k < L.N
-            treevec.cps[k:end] .+= Δp
-        end
+        treevec.ps[k] += Δp
+    end
+
+    for k = 2:L.N-1
+        treevec.cps[k] = treevec.cps[k - 1] + treevec.ps[k]
     end
 
     L.flips += 1
