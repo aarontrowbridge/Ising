@@ -17,11 +17,11 @@ mutable struct SpinBody
     j::Int
     k::Int
 
-    SpinBody(i::Int, j::Int, N::Int) = new(rand([-1,1]), 0, i, j, k(i, j, N))
+    SpinBody(i::Int, j::Int, n::Int) = new(rand([-1,1]), 0, i, j, k(i, j, n))
     SpinBody(s::Int, E::Int, i::Int, j::Int, k::Int) = new(s, E, i, j, k)
 end
 
-k(i, j, N) = i + (j - 1)*N
+k(i, j, n) = i + (j - 1) * n
 
 mutable struct SpinLattice
     n::Int
