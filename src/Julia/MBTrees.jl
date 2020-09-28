@@ -102,13 +102,16 @@ mutable struct MBTree
 
 end
 
+function create_tree(L::SpinLattice)
+    nodes = [()]
+
 function build_tree(L::SpinLattice)
     tree = MBTree()
     for b in L.bs
         p = L.f(-2*b.E, L.T)
         populate!(tree, b, Flt(p))
     end
-    tree
+    return tree
 end
 
 function populate!(T::MBTree, b::SpinBody, p::Flt)

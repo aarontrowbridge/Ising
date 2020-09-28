@@ -5,10 +5,10 @@
 module SpinBodies
 
 using Statistics
+using WalterMethod
 
 export SpinBody, SpinLattice
-export visualize, update_energies!, update_energies_fast!, update_lattice!, metropolis_step!
-export prb, amp
+export visualize, update_lattice!, metropolis_step!, walter_step!
 
 mutable struct SpinBody
     s::Int
@@ -56,6 +56,9 @@ mutable struct SpinLattice
                 c::Float64,
                 f::Function) = new(n, N, bs, T, M, E, c, 0, 0, f)
 end
+
+prb(ΔE, T) = minimum([1, exp(-ΔE / T)])
+amp(ΔE, T) = exp(-0.5 * ΔE / T)
 
 # TO-DO: add methods for correlation function
 
@@ -106,42 +109,13 @@ function init_energy!(bs::Matrix{SpinBody}, n::Int)
     end
 end
 
-function flip!(L::SpinLattice, i::Int, j::Int; fast=true)
-    L.bs[i,j].s *= -1
-    n = L.n
-    I = [mod(i, n) + 1, i, mod(i - 2, n) + 1, i]
-    J = [j, mod(j, n) + 1, j, mod(j - 2, n) + 1]
-    qs = collect(zip(I, J))
-    if fast
-        L.bs[i,j].E *= -1
-        update_energies_fast!(L, qs, L.bs[i,j].s)
-    else
-        update_energies!(L, [(i, j); qs])
-    end
-end
-
-function update_energies!(L::SpinLattice, qs::Vector{Tuple{Int,Int}})
-    n = L.n
-    for (i, j) in qs
-        sk = L.bs[i, j].s
-        sr = L.bs[i, mod(j, n) + 1].s
-        sl = L.bs[i, mod(j - 2, n) + 1].s
-        su = L.bs[mod(i, n) + 1, j].s
-        sd = L.bs[mod(i - 2, n) + 1, j].s
-        L.bs[i,j].E = -sk * (sr + su + sl + sd)
-    end
-end
-
-function update_energies_fast!(L::SpinLattice, qs::Vector{Tuple{Int,Int}}, s::Int)
+function update_energies!(L::SpinLattice, qs::Vector{Tuple{Int,Int}}, s::Int)
     for (i, j) in qs
         L.bs[i,j].s == s ? L.bs[i,j].E -= 2 : L.bs[i,j].E += 2
     end
 end
 
-prb(ΔE, T) = minimum([1, exp(-ΔE / T)])
-amp(ΔE, T) = exp(-0.5 * ΔE / T)
-
-function metropolis_step!(L::SpinLattice; fast=false)
+function metropolis_step!(L::SpinLattice)
     i, j = rand(1:L.n), rand(1:L.n)
     Ei = L.bs[i,j].E
     Ef = -Ei
@@ -149,10 +123,43 @@ function metropolis_step!(L::SpinLattice; fast=false)
     p = L.f(ΔE, L.T)
     u = rand()
     if u < p
-        flip!(L, i, j, fast=fast)
+        flip!(L, i, j)
         L.flips += 1
     end
     L.steps += 1
 end
+
+function flip!(L::SpinLattice, i::Int, j::Int)
+    L.bs[i,j].s *= -1
+    n = L.n
+    I = [mod(i, n) + 1, i, mod(i - 2, n) + 1, i]
+    J = [j, mod(j, n) + 1, j, mod(j - 2, n) + 1]
+    qs = collect(zip(I, J))
+    L.bs[i,j].E *= -1
+    update_energies!(L, qs, L.bs[i,j].s)
+end
+
+ij(k, n) = (mod(k - 1, n) + 1, div(k - 1, n) + 1)
+
+function walter_step!(L::SpinLattice, T::WalterTree)
+    x = T.sum * rand()
+    n = L.n
+    i, j = ij(move(T, x), n)
+    L.bs[i,j].s *= -1
+    I = [mod(i, n) + 1, i, mod(i - 2, n) + 1, i]
+    J = [j, mod(j, n) + 1, j, mod(j - 2, n) + 1]
+    qs = collect(zip(I, J))
+    Ei_s = [L.bs[x,y].E for (x, y) in [(i,j);qs]]
+    L.bs[i,j].E *= -1
+    update_energies!(L, qs, L.bs[i,j].s)
+    Ef_s = [L.bs[x,y].E for (x, y) in [(i,j);qs]]
+    ks = [k(x, y, n) for (x, y) in [(i,j);qs]]
+    Δp_s = [L.f(-2 * Ef, L.T) - L.f(-2 * Ei, L.T) for (Ei, Ef) in zip(Ei_s, Ef_s)]
+    update!(T, collect(zip(ks, Δp_s)))
+    L.flips += 1
+end
+
+
+
 
 end
