@@ -17,11 +17,11 @@ mutable struct SpinBody
     j::Int
     k::Int
 
-    SpinBody(i::Int, j::Int, N::Int) = new(rand([-1,1]), 0, i, j, k(i, j, N))
+    SpinBody(i::Int, j::Int, n::Int) = new(rand([-1,1]), 0, i, j, k(i, j, n))
     SpinBody(s::Int, E::Int, i::Int, j::Int, k::Int) = new(s, E, i, j, k)
 end
 
-k(i, j, N) = i + (j - 1)*N
+k(i, j, n) = i + (j - 1) * n
 
 mutable struct SpinLattice
     n::Int
@@ -141,10 +141,10 @@ end
 
 ij(k, n) = (mod(k - 1, n) + 1, div(k - 1, n) + 1)
 
-function walter_step!(L::SpinLattice, T::WalterTree)
-    x = T.sum * rand()
+function walter_step!(L::SpinLattice, tree::WalterTree)
+    x = tree.sum * rand()
     n = L.n
-    i, j = ij(move(T, x), n)
+    i, j = ij(move(tree, x), n)
     L.bs[i,j].s *= -1
     I = [mod(i, n) + 1, i, mod(i - 2, n) + 1, i]
     J = [j, mod(j, n) + 1, j, mod(j - 2, n) + 1]
@@ -155,7 +155,8 @@ function walter_step!(L::SpinLattice, T::WalterTree)
     Ef_s = [L.bs[x,y].E for (x, y) in [(i,j);qs]]
     ks = [k(x, y, n) for (x, y) in [(i,j);qs]]
     Δp_s = [L.f(-2 * Ef, L.T) - L.f(-2 * Ei, L.T) for (Ei, Ef) in zip(Ei_s, Ef_s)]
-    update!(T, collect(zip(ks, Δp_s)))
+    update!(tree, collect(zip(ks, Δp_s))) # this is causes code to break if n = 2
+                                          # some ks are not unique => negatives in tree
     L.flips += 1
 end
 

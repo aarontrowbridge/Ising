@@ -13,12 +13,11 @@ mutable struct WalterTree
     sum::Float64
     left::Union{Nothing, WalterTree}
     right::Union{Nothing, WalterTree}
-    leaf::Bool
 
     function WalterTree(ps::Vector, depth=0, maxdepth=nothing)
         if depth == 0
             N = length(ps)
-            maxdepth = ceil(Int, log2(N + 1))
+            maxdepth = ceil(Int, log2(N + 1)) - 1
             ps = collect(enumerate(vcat(ps, zeros(2^(maxdepth + 1) - 1 - N))))
         end
         k = div(2^(maxdepth - depth + 1) - 1, 2) + 1
@@ -26,19 +25,17 @@ mutable struct WalterTree
         if depth < maxdepth
             left = WalterTree(ps[1:k-1], depth+1, maxdepth)
             right = WalterTree(ps[k+1:end], depth+1, maxdepth)
-            leaf = false
         else
             left = nothing
             right = nothing
-            leaf = true
         end
-        return new(ps[k][1], ps[k][2], total, left, right, leaf)
+        return new(ps[k][1], ps[k][2], total, left, right)
     end
 end
 
 function move(tree::WalterTree, x=nothing)
     x = tree.sum * rand()
-    if tree.leaf
+    if tree.left == nothing
         return tree.k
     else
         if x < tree.left.sum
