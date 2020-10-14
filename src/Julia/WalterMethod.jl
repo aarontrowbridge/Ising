@@ -10,7 +10,7 @@ export move, update!
 mutable struct WalterTree
     k::Int
     p::Float64
-    sum::Float64
+    psum::Float64
     left::Union{Nothing, WalterTree}
     right::Union{Nothing, WalterTree}
 
@@ -21,7 +21,7 @@ mutable struct WalterTree
             ps = collect(enumerate(vcat(ps, zeros(2^(maxdepth + 1) - 1 - N))))
         end
         k = div(2^(maxdepth - depth + 1) - 1, 2) + 1
-        total = sum([p for (_, p) in ps])
+        psum = sum([p for (_, p) in ps])
         if depth < maxdepth
             left = WalterTree(ps[1:k-1], depth+1, maxdepth)
             right = WalterTree(ps[k+1:end], depth+1, maxdepth)
@@ -29,19 +29,19 @@ mutable struct WalterTree
             left = nothing
             right = nothing
         end
-        return new(ps[k][1], ps[k][2], total, left, right)
+        return new(ps[k][1], ps[k][2], psum, left, right)
     end
 end
 
 function move(tree::WalterTree, x=nothing)
-    x = tree.sum * rand()
+    x = tree.psum * rand()
     if tree.left == nothing
         return tree.k
     else
-        if x < tree.left.sum
+        if x < tree.left.psum
             return move(tree.left, x)
-        elseif x > tree.left.sum + tree.p
-            return move(tree.right, x - tree.left.sum - tree.p)
+        elseif x > tree.left.psum + tree.p
+            return move(tree.right, x - tree.left.psum - tree.p)
         else
             return tree.k
         end
@@ -55,7 +55,7 @@ function update!(tree::WalterTree, Δps::Vector{Tuple{Int, Float64}})
 end
 
 function update!(tree::WalterTree, k::Int, Δp::Float64)
-    tree.sum += Δp
+    tree.psum += Δp
     if k < tree.k
         update!(tree.left, k, Δp)
     elseif k > tree.k
